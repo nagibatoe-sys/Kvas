@@ -78,15 +78,18 @@ export function MainScreen({ onNavigate }: { onNavigate: (path: string) => void 
           )}
         </section>
 
-        {/* Индикатор синхронизации (ТЗ 6.2.1) */}
-        <section className="card small" data-testid="sync-indicator">
-          {pendingCount > 0 ? (
-            <span className="badge pending">⚠ {texts.syncPending} ({pendingCount})</span>
-          ) : (
-            <span className="badge synced">✓ {texts.syncAllSent}</span>
-          )}
-          {syncing && <span className="muted" style={{ marginLeft: 8 }}>{texts.sending}</span>}
-        </section>
+        {/* Индикатор синхронизации (ТЗ 6.2.1): показываем только проблемы;
+            после успешной синхронизации плашка исчезает (ТЗ 14.7) */}
+        {(pendingCount > 0 || syncing) && (
+          <section className="card small" data-testid="sync-indicator">
+            {pendingCount > 0 ? (
+              <span className="badge pending">⚠ {texts.syncPending} ({pendingCount})</span>
+            ) : (
+              <span className="badge synced">✓ {texts.syncAllSent}</span>
+            )}
+            {syncing && <span className="muted" style={{ marginLeft: 8 }}>{texts.sending}</span>}
+          </section>
+        )}
 
         {/* Основная кнопка действия */}
         {activeShift ? (

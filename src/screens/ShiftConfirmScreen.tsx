@@ -8,7 +8,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAppStore, selectActiveShift } from '../store';
 import { texts } from '../i18n';
-import { requestCurrentLocation } from '../lib/location';
+import { resolveLocationForMark } from '../lib/location';
 import { validateComment } from '../lib/comment';
 import { formatTime, localIso } from '../lib/time';
 import { MAX_COMMENT_LENGTH } from '../types';
@@ -37,6 +37,7 @@ export function ShiftConfirmScreen({
 
   const [phase, setPhase] = useState<Phase>('locating');
   const [coords, setCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [isDemoGeo, setIsDemoGeo] = useState(false);
   const [geoError, setGeoError] = useState<GeoErrorState | null>(null);
   const [comment, setComment] = useState('');
   const [commentError, setCommentError] = useState<string | null>(null);
@@ -49,10 +50,15 @@ export function ShiftConfirmScreen({
     inFlight.current = true;
     setPhase('locating');
     setGeoError(null);
-    const res = await requestCurrentLocation();
+    // В web-прототипе при недоступности GPS (например, доступ через туннель,
+    // где браузер блокирует геолокацию в небезопасном контексте) используются
+    // демо-координаты, чтобы весь поток отметки можно было проверить.
+    // При явном запрете доступа (permission_denied) отметка не создается (ТЗ 10.3).
+    const res = await resolveLocationForMark();
     inFlight.current = false;
     if (res.ok) {
       setCoords({ latitude: res.latitude, longitude: res.longitude });
+      setIsDemoGeo(res.demo);
       setPhase('confirm');
     } else {
       setGeoError({ reason: res.reason });
@@ -144,6 +150,12 @@ export function ShiftConfirmScreen({
             <p className="small muted" data-testid="coords-line">
               📍 {coords.latitude.toFixed(6)}, {coords.longitude.toFixed(6)}
             </p>
+            {isDemoGeo && (
+              <p className="badge pending" data-testid="demo-geo-note" style={{ display: 'inline-block', marginBottom: 4 }}>
+                ℹ️ Демо-координаты: браузер не передал геолокацию (небезопасный контекст).
+                В нативной версии будут реальные GPS-координаты.
+              </p>
+            )}
 
             <div className="field" style={{ marginTop: 10 }}>
               <label htmlFor="comment">{texts.commentLabel}</label>

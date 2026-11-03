@@ -5,7 +5,7 @@
 import { describe, it, expect } from 'vitest';
 import { validateComment, normalizeComment } from '../lib/comment';
 import { getTimezoneOffset, localIso, formatTime, daysAgo } from '../lib/time';
-import { requestCurrentLocation, type GeolocationLike } from '../lib/location';
+import { requestCurrentLocation, resolveLocationForMark, DEMO_COORDS, type GeolocationLike } from '../lib/location';
 import { orderForSync, isRetryDue, isStorageOverflow } from '../store';
 import type { ShiftEvent } from '../types';
 
@@ -65,7 +65,7 @@ describe('Время и часовой пояс (ТЗ 8.2, 15.4)', () => {
 });
 
 describe('Геолокация (ТЗ 6.5.3, 10.3, 10.4)', () => {
-  it('возвращает координаты при успехе', async () => {
+  it('возвращает реальные координаты при успехе', async () => {
     const geo: GeolocationLike = {
       getCurrentPosition: (s) => s({ latitude: 55.75, longitude: 37.61 }),
     };
@@ -73,27 +73,38 @@ describe('Геолокация (ТЗ 6.5.3, 10.3, 10.4)', () => {
       ok: true,
       latitude: 55.75,
       longitude: 37.61,
+      demo: false,
     });
   });
-  it('permission_denied при code=1', async () => {
+  it('permission_denied при code=1 — без фолбэка (ТЗ 10.3)', async () => {
     const geo: GeolocationLike = {
       getCurrentPosition: (_s, e) => e({ code: 1 }),
     };
     const res = await requestCurrentLocation(geo);
     expect(res.ok).toBe(false);
     if (!res.ok) expect(res.reason).toBe('permission_denied');
+    // resolveLocationForMark не создаёт отметку при запрещённом доступе
+    const mark = await resolveLocationForMark(geo);
+    expect(mark).toEqual({ ok: false, reason: 'permission_denied' });
   });
-  it('unavailable при таймауте (code=3)', async () => {
+  it('demo_fallback при таймауте (code=3), web-демо получает демо-координаты', async () => {
     const geo: GeolocationLike = {
       getCurrentPosition: (_s, e) => e({ code: 3 }),
     };
     const res = await requestCurrentLocation(geo);
     expect(res.ok).toBe(false);
-    if (!res.ok) expect(res.reason).toBe('unavailable');
+    if (!res.ok) expect(res.reason).toBe('demo_fallback');
+    const mark = await resolveLocationForMark(geo);
+    expect(mark.ok).toBe(true);
+    if (mark.ok) {
+      expect(mark.demo).toBe(true);
+      expect(mark.latitude).toBe(DEMO_COORDS.latitude);
+      expect(mark.longitude).toBe(DEMO_COORDS.longitude);
+    }
   });
-  it('unavailable, если API недоступен', async () => {
+  it('demo_fallback, если API недоступен', async () => {
     const res = await requestCurrentLocation(undefined);
-    expect(res).toEqual({ ok: false, reason: 'unavailable' });
+    expect(res).toEqual({ ok: false, reason: 'demo_fallback' });
   });
 });
 
