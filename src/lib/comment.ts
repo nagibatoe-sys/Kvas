@@ -7,8 +7,13 @@
  */
 import { MAX_COMMENT_LENGTH } from '../types';
 
-/** Разрешены: буквы любого языка, цифры, пробелы/переносы строки, знаки препинания, символы валют. */
-const ALLOWED_RE = /^[\p{L}\p{N}\p{P}\p{Sc}\s]*$/u;
+/**
+ * Разрешены: буквы любого языка, цифры, пробелы/переносы строки, знаки
+ * препинания, символы валют + дополнительный набор спецсимволов (№§°±‰ и т.п.),
+ * которые не входят в классы \p{P}/\p{Sc} в Unicode-движке ранней версии.
+ */
+const EXTRA_ALLOWED = '№§°±µ‰™←→↑↓↔¬';
+const ALLOWED_RE = new RegExp(`^[\\p{L}\\p{N}\\p{P}\\p{Sc}\\s${EXTRA_ALLOWED}]*$`, 'u');
 
 export function normalizeComment(raw: string): string {
   return raw.trim();
